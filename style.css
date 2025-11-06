@@ -185,3 +185,27 @@ body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-ser
   box-sizing: border-box;
   max-width: 100%;
 }
+
+/* === Final overflow fix for All-year view === */
+.results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 16px;
+  width: 100%;
+  padding: 0 10px 40px 10px;
+  box-sizing: border-box;
+  overflow: hidden; /* 横スクロール完全防止 */
+}
+
+.card {
+  min-width: 0; /* overflow防止の肝 */
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+body, html {
+  overflow-x: hidden !important; /* ブラウザ全体の水平スクロール禁止 */
+}
