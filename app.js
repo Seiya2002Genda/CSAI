@@ -1,26 +1,70 @@
-console.log("✅ app.js loaded");
+console.log("✅ CSAI app.js loaded");
 
-// --- docx 読み込み確認 ---
-if (window.docx) {
-  console.log("✅ docx library detected:", window.docx);
-} else {
-  console.warn("❌ docx library not found. Check index.html or docx.js path.");
-}
-
-// ----------------- 要素参照 -----------------
+// ----------------- 要素定義 -----------------
 const el = {
   q: document.getElementById("q"),
   searchBtn: document.getElementById("search-btn"),
   results: document.getElementById("results"),
   stats: document.getElementById("stats"),
+  apiKeyBtn: document.getElementById("set-key"),
 };
 
 let resultsCache = [];
 let selectedPapers = new Set();
 let yearSelectEl = null;
 let composing = false;
+let popup = null;
 
-// イベント登録
+// ----------------- API Key 管理 -----------------
+initApiKeyButton();
+
+function initApiKeyButton() {
+  updateApiKeyBtnStyle();
+
+  if (!el.apiKeyBtn) return;
+
+  el.apiKeyBtn.addEventListener("click", () => {
+    const currentKey = localStorage.getItem("openai_api_key");
+
+    // 登録済みなら削除・再設定を選ばせる
+    if (currentKey) {
+      const replace = confirm("API Key is already saved.\nDo you want to replace or remove it?");
+      if (!replace) return;
+    }
+
+    const newKey = prompt("Enter your OpenAI API Key (starts with 'sk-'):");
+    if (newKey === null) return; // キャンセル
+    if (newKey.trim() === "") {
+      localStorage.removeItem("openai_api_key");
+      alert("🗑️ API Key removed.");
+    } else if (newKey.startsWith("sk-")) {
+      localStorage.setItem("openai_api_key", newKey.trim());
+      alert("✅ API Key saved successfully!");
+    } else {
+      alert("⚠️ Invalid key format. It must start with 'sk-'.");
+    }
+    updateApiKeyBtnStyle();
+  });
+}
+
+function updateApiKeyBtnStyle() {
+  const hasKey = !!localStorage.getItem("openai_api_key");
+  el.apiKeyBtn.textContent = hasKey ? "API Key ✅" : "API Key";
+  el.apiKeyBtn.style.background = hasKey ? "#28a745" : "transparent";
+  el.apiKeyBtn.style.color = hasKey ? "#fff" : "#58a6ff";
+  el.apiKeyBtn.style.border = hasKey ? "none" : "1px solid #58a6ff";
+}
+
+function getApiKey() {
+  const key = localStorage.getItem("openai_api_key");
+  if (!key) {
+    alert("⚠️ Please set your API Key first.");
+    return null;
+  }
+  return key;
+}
+
+// ----------------- 検索関連 -----------------
 if (el.searchBtn) el.searchBtn.addEventListener("click", search);
 if (el.q) {
   el.q.addEventListener("compositionstart", () => (composing = true));
@@ -33,7 +77,6 @@ if (el.q) {
   });
 }
 
-// ----------------- 検索処理 -----------------
 async function search() {
   const q = el.q.value.trim();
   if (!q) return;
@@ -43,7 +86,7 @@ async function search() {
 
   try {
     const maxPerPage = 2000;
-    const maxPages = 5; // 最大1万件
+    const maxPages = 5;
     let start = 0;
 
     for (let i = 0; i < maxPages; i++) {
@@ -65,15 +108,13 @@ async function search() {
         const authors = Array.from(e.querySelectorAll("author name")).map(
           (a) => a.textContent
         );
-
-        // ✅ 年範囲 2010〜2026
         if (year >= 2010 && year <= 2026) {
           resultsCache.push({ title, summary, year, authors, url });
         }
       });
 
       start += maxPerPage;
-      await new Promise((r) => setTimeout(r, 200)); // polite delay
+      await new Promise((r) => setTimeout(r, 200));
     }
 
     afterSearchRender();
@@ -83,7 +124,7 @@ async function search() {
   }
 }
 
-// ----------------- 結果描画 -----------------
+// ----------------- 検索結果描画 -----------------
 function afterSearchRender() {
   const years = [...new Set(resultsCache.map((r) => r.year).filter(Boolean))]
     .filter((y) => y >= 2010 && y <= 2026)
@@ -97,7 +138,6 @@ function afterSearchRender() {
   }`;
 }
 
-// ----------------- 年セレクタ -----------------
 function buildYearSelectFromData(yearsDesc) {
   if (!yearSelectEl) {
     const wrap = document.createElement("div");
@@ -117,7 +157,6 @@ function buildYearSelectFromData(yearsDesc) {
   ].join("");
 }
 
-// ----------------- 表示 -----------------
 function rerender(filterYear = "") {
   el.results.innerHTML = "";
   const filtered = filterYear
@@ -146,69 +185,80 @@ function rerender(filterYear = "") {
 }
 
 // ----------------- Popup -----------------
-let popup = null;
 function updatePopupVisibility() {
   if (!popup) {
     popup = document.createElement("div");
     popup.id = "export-popup";
     popup.innerHTML = `
-      <div class="popup-inner">
-        <p>✅ Do you want to output summary, which is selected paper</p>
-        <button id="popup-export" class="primary">Output summary as Word file</button>
+      <div class="popup-inner" style="background:#0d1117;padding:10px 20px;border-radius:8px;display:flex;align-items:center;gap:12px;">
+        <label style="color:#bfc6d1;"><input type="checkbox" checked disabled> Generate AI summaries for selected papers</label>
+        <button id="popup-export" class="primary">Generate AI Summary</button>
       </div>`;
     document.body.appendChild(popup);
     document.getElementById("popup-export").addEventListener("click", exportWord);
   }
-  popup.style.display = selectedPapers.size > 0 ? "block" : "none";
+  popup.style.display = selectedPapers.size > 0 ? "flex" : "none";
 }
 
-// ----------------- Word出力 -----------------
+// ----------------- AI要約生成 -----------------
 async function exportWord() {
-  console.log("🔍 Checking docx:", window.docx);
-
-  if (!window.docx) {
-    alert("❌ docx library not found. Check index.html or local docx.js");
+  const selected = resultsCache.filter((r) => selectedPapers.has(r.title));
+  if (selected.length === 0) {
+    alert("Please select at least one paper.");
     return;
   }
 
-  const { Document, Packer, Paragraph, TextRun } = window.docx;
-  const selected = resultsCache.filter((r) => selectedPapers.has(r.title));
+  const key = getApiKey();
+  if (!key) return;
 
-  try {
-    const doc = new Document({
-      sections: [
-        {
-          children: [
-            new Paragraph({
-              text: "Selected Papers (2010–2026)",
-              heading: "Heading1",
-            }),
-            ...selected.map(
-              (r) =>
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `${r.authors.join(", ")} (${r.year}). ${r.title}. arXiv.`,
-                      font: "Times New Roman",
-                      size: 24,
-                    }),
-                  ],
-                })
-            ),
-          ],
+  let modal = document.createElement("div");
+  modal.style.cssText = `
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background:rgba(0,0,0,0.8); display:flex; justify-content:center; align-items:center; z-index:9999;
+  `;
+  modal.innerHTML = `
+    <div style="background:#1a1a1a;padding:30px;border-radius:12px;max-width:900px;max-height:80vh;overflow-y:auto;color:#fff;">
+      <h2 style="text-align:center;">🧠 AI Summaries (via OpenAI API)</h2>
+      <div id="ai-summaries" style="margin-top:20px;"></div>
+      <button id="closeModal" style="margin-top:20px;padding:10px 20px;background:#444;color:#fff;border:none;border-radius:8px;cursor:pointer;">Close</button>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector("#closeModal").addEventListener("click", () => modal.remove());
+  const outputDiv = modal.querySelector("#ai-summaries");
+
+  for (const paper of selected) {
+    const itemDiv = document.createElement("div");
+    itemDiv.style.cssText = "margin-bottom:25px; border-bottom:1px solid #333; padding-bottom:15px;";
+    itemDiv.innerHTML = `
+      <h3>${paper.title}</h3>
+      <p style="color:#bfc6d1;">${paper.authors.join(", ")} ・ ${paper.year}</p>
+      <p style="color:#888;">Generating AI summary...</p>`;
+    outputDiv.appendChild(itemDiv);
+
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
         },
-      ],
-    });
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: "You are an academic assistant. Summarize the given abstract clearly in 4–5 sentences." },
+            { role: "user", content: paper.summary },
+          ],
+        }),
+      });
 
-    const blob = await Packer.toBlob(doc);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "Selected_Papers_2010_2026.docx";
-    a.click();
-
-    console.log("✅ Word file generated successfully");
-  } catch (err) {
-    console.error(err);
-    alert("Failed to export Word file.");
+      const data = await res.json();
+      const summary = data.choices?.[0]?.message?.content?.trim() || "(No summary generated)";
+      itemDiv.querySelector("p[color='#888'], p").outerHTML = `
+        <p>${summary}</p>
+        <a href="${paper.url}" target="_blank" style="color:#58a6ff;">Open in arXiv</a>`;
+    } catch (err) {
+      console.error(err);
+      itemDiv.querySelector("p[color='#888'], p").outerHTML = `<p style="color:#f77;">❌ Failed to generate summary.</p>`;
+    }
   }
 }
