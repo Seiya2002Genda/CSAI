@@ -200,3 +200,40 @@ async function exportWord() {
     alert("Failed to export Word file.");
   }
 }
+// ===============================
+// Selectable Card Feature
+// ===============================
+document.addEventListener("DOMContentLoaded", () => {
+  const resultsContainer = document.querySelector(".results");
+  if (!resultsContainer) return;
+
+  // チェックされたカードを追跡する配列
+  const selectedPapers = new Set();
+
+  // カード描画後にイベントを再付与する
+  const attachCheckboxHandlers = () => {
+    const checkboxes = resultsContainer.querySelectorAll("input[type='checkbox']");
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", (e) => {
+        const card = e.target.closest(".card");
+        const title = card?.querySelector("h3")?.innerText?.trim() || "Untitled Paper";
+
+        if (e.target.checked) {
+          selectedPapers.add(title);
+          card.classList.add("selected-card");
+        } else {
+          selectedPapers.delete(title);
+          card.classList.remove("selected-card");
+        }
+
+        console.log("Selected papers:", Array.from(selectedPapers));
+      });
+    });
+  };
+
+  // MutationObserverで動的生成カードにも反応
+  const observer = new MutationObserver(() => attachCheckboxHandlers());
+  observer.observe(resultsContainer, { childList: true, subtree: true });
+
+  attachCheckboxHandlers();
+});
