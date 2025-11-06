@@ -162,3 +162,26 @@ body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-ser
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* === Fix: prevent cards from cutting off or clipping === */
+.results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 16px;
+  padding-bottom: 40px;
+  overflow-x: visible;
+  overflow-y: visible;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Prevent inner text or buttons from being cut off */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  word-wrap: break-word;
+  overflow: visible;
+  box-sizing: border-box;
+  max-width: 100%;
+}
