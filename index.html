@@ -1,21 +1,22 @@
+
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CS Scholar — AI Search & Summary</title>
+  <title>CSAI</title>
   <link rel="stylesheet" href="style.css">
 
-  <!-- ✅ 1. docxを先に読み込む -->
-  <script src="https://cdn.jsdelivr.net/npm/docx@7.7.0/build/index.umd.js"></script>
+  <!-- ✅ 1. docx ライブラリを先に読み込む -->
+  <script type="text/javascript" src="https://unpkg.com/docx@7.7.0/build/index.umd.js"></script>
 
-  <!-- ✅ 2. app.js を defer で後から実行 -->
-  <script defer src="app.js"></script>
+  <!-- ✅ 2. app.js は defer で後から実行 -->
+  <script defer type="text/javascript" src="app.js"></script>
 </head>
 
 <body>
   <header class="nav">
-    <div class="brand"><h2>CS Scholar</h2></div>
+    <div class="brand"><h2>CSAI Scholar</h2></div>
     <div class="actions">
       <button id="set-key" class="ghost">API Key</button>
       <label class="cb online"><input id="online" type="checkbox" checked> Online</label>
@@ -25,7 +26,7 @@
   </header>
 
   <main class="hero">
-    <h1>Computer Science Papers Only <span class="accent">AI Search & Summarization</span></h1>
+    <h1>CSAI <span class="accent"></span></h1>
     <p class="sub">Retrieved from arXiv and optionally summarized using the OpenAI API. Supports local fallback.</p>
 
     <div class="search-wrap">
